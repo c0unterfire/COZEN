@@ -1,0 +1,61 @@
+#include "USBDrive.h"
+
+PWSTR g_pszAppName;
+#define WND_CLASS_NAME TEXT("COZEN")
+
+
+boolean InitWindowClass()
+{
+	WNDCLASSEX wndClass;
+
+	wndClass.cbSize = sizeof(WNDCLASSEX);
+	wndClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+	wndClass.hInstance = reinterpret_cast<HINSTANCE>(GetModuleHandle(0));
+	wndClass.lpfnWndProc = reinterpret_cast<WNDPROC>(WinProcCallback);
+	wndClass.cbClsExtra = 0;
+	wndClass.cbWndExtra = 0;
+	wndClass.hIcon = LoadIcon(0, IDI_APPLICATION);
+	wndClass.hbrBackground = CreateSolidBrush(RGB(192, 192, 192));
+	wndClass.hCursor = LoadCursor(0, IDC_ARROW);
+	wndClass.lpszClassName = WND_CLASS_NAME;
+	wndClass.lpszMenuName = NULL;
+	wndClass.hIconSm = wndClass.hIcon;
+	
+	if (!RegisterClassEx(&wndClass))
+	{
+		return false;
+	}
+	return true;
+}
+
+int _stdcall wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR pCmdLine, _In_ int nCmdShow)
+{
+	int nArgC = 0;
+	PWSTR* ppArgV = CommandLineToArgvW(pCmdLine, &nArgC);
+	g_pszAppName = ppArgV[0];
+	registrationMode = readRegistry(true);
+
+	if (!InitWindowClass())
+	{
+		return -1;
+	}
+
+	HWND hWnd = CreateWindowEx(
+		WS_EX_CLIENTEDGE | WS_EX_APPWINDOW,
+		WND_CLASS_NAME,
+		g_pszAppName,
+		WS_OVERLAPPEDWINDOW, // style
+		CW_USEDEFAULT, 0,
+		640, 480,
+		NULL, NULL,
+		hPrevInstance,
+		NULL);
+
+	if (hWnd == NULL)
+	{
+		return -1;
+	}
+
+	MessagePump(hWnd);
+	return 0;
+}
