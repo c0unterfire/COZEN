@@ -23,6 +23,7 @@ boolean readRegistry(boolean getWhiteList);
 void clearWhiteListVector();
 void GetWhiteListDrives(HKEY hKey);
 void lock_unlock_drives(boolean* drivesState);
+void processDrive(char driveLetter);
 
 extern boolean registrationMode;
 

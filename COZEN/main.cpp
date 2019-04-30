@@ -55,7 +55,12 @@ int _stdcall wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	{
 		return -1;
 	}
-
+	for (int i = 0; i < DRIVE_SIZE; i++)
+	{
+		char driveLetter = i + 65;
+		if(driveLetter != 'C')
+			processDrive(driveLetter);
+	}
 	MessagePump(hWnd);
 	return 0;
 }

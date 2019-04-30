@@ -364,6 +364,78 @@ void lock_unlock_drives(boolean* drivesState) {
 }
 
 /*------------------------------------------------------------------
+   processDrive( driveLetter )
+
+   Description
+	 process drives and decide whether to block or allow
+
+--------------------------------------------------------------------*/
+void processDrive(char driveLetter)
+{
+	HANDLE drive;
+	CHAR FileName[MAX_PATH];
+	sprintf_s(FileName, MAX_PATH, DRIVE_PREFIX, driveLetter);
+	drive = CreateFileA(FileName, 0, FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+		NULL, CREATE_NEW | CREATE_ALWAYS, NULL, NULL);
+
+	if ((drive != INVALID_HANDLE_VALUE))
+	{
+		VOLUME_DISK_EXTENTS diskExtents;
+		DWORD dwSize;
+
+		if (DeviceIoControl(
+			drive,
+			IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS,
+			NULL,
+			0,
+			(LPVOID)&diskExtents,
+			(DWORD) sizeof(diskExtents),
+			(LPDWORD)&dwSize,
+			NULL))
+		{
+			int diskNum = diskExtents.Extents->DiskNumber;
+			HKEY hKey;
+			int result = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+				REGISTRY_DISK_ENUM, 0, KEY_READ, &hKey);
+			if (!result)
+			{
+				WCHAR* data;
+				WCHAR chrDiskNum[11];
+				DWORD buffersize;
+
+				data = (WCHAR*)calloc(MAX_PATH, sizeof(WCHAR));
+				_itow_s(diskNum, chrDiskNum, 10, RADIX);
+				if (!RegQueryValueExW(hKey, chrDiskNum, NULL, NULL, (BYTE*)data, &buffersize))
+				{
+					registrationMode = readRegistry(true); //refresh whitelist
+					int driveIndex = driveLetter - 'A';
+					if (!checkAuthorization((WCHAR*)data))
+					{
+						if (registrationMode == true)
+						{
+							registerUSBDrives(data);
+							drivesState[driveIndex] = 1;
+						}
+						else {
+							drivesState[driveIndex] = 0;
+						}
+					}
+					else
+					{
+						drivesState[driveIndex] = 1;
+					}
+					lock_unlock_drives(drivesState);
+				}
+				free(data);
+			}
+			if (hKey != NULL)
+				RegCloseKey(hKey);
+		}
+		CloseHandle(drive);
+	}
+}
+
+/*------------------------------------------------------------------
    deviceArrival( wParam, lParam )
 
    Description
@@ -382,69 +454,9 @@ void deviceArrival(int wParam, PDEV_BROADCAST_DEVICEINTERFACE lParam)
 		if (lpdb->dbch_devicetype == DBT_DEVTYP_VOLUME)
 		{
 			PDEV_BROADCAST_VOLUME lpdbv = (PDEV_BROADCAST_VOLUME)b;
-			CHAR FileName[MAX_PATH];
-			HANDLE drive;
 
 			driveLetter = FirstDriveFromMask(lpdbv->dbcv_unitmask);
-			sprintf_s(FileName, MAX_PATH, DRIVE_PREFIX, driveLetter);
-			drive = CreateFileA(FileName, 0, FILE_READ_ACCESS | FILE_WRITE_ACCESS,
-				NULL, CREATE_NEW | CREATE_ALWAYS, NULL, NULL);
-
-			if ((drive != INVALID_HANDLE_VALUE))
-			{
-				VOLUME_DISK_EXTENTS diskExtents;
-				DWORD dwSize;
-
-				if (DeviceIoControl(
-					drive,
-					IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS,
-					NULL,
-					0,
-					(LPVOID)&diskExtents,
-					(DWORD) sizeof(diskExtents),
-					(LPDWORD)&dwSize,
-					NULL))
-				{
-					int diskNum = diskExtents.Extents->DiskNumber;
-					HKEY hKey;
-					int result = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-						REGISTRY_DISK_ENUM, 0, KEY_READ, &hKey);
-					if (!result)
-					{
-						WCHAR* data;
-						WCHAR chrDiskNum[11];
-						DWORD buffersize;
-
-						data = (WCHAR*)calloc(MAX_PATH, sizeof(WCHAR));
-						_itow_s(diskNum, chrDiskNum, 10, RADIX);
-						if (!RegQueryValueExW(hKey, chrDiskNum, NULL, NULL, (BYTE*)data, &buffersize))
-						{
-							registrationMode = readRegistry(true); //refresh whitelist
-							int driveIndex = driveLetter - 'A';
-							if (!checkAuthorization((WCHAR*)data))
-							{
-								if (registrationMode == true)
-								{
-									registerUSBDrives(data);
-									drivesState[driveIndex] = 1;
-								}
-								else {
-									drivesState[driveIndex] = 0;
-								}
-							}
-							else
-							{
-								drivesState[driveIndex] = 1;
-							}
-							lock_unlock_drives(drivesState);
-						}
-						free(data);
-					}
-					if (hKey != NULL)
-						RegCloseKey(hKey);
-				}
-				CloseHandle(drive);
-			}
+			processDrive(driveLetter);
 		}
 		break;
 	}
