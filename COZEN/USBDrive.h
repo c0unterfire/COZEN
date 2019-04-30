@@ -10,6 +10,7 @@
 #define RADIX 10
 #define MAX_KEY_LENGTH 255
 #define MAX_VALUE_NAME 16383
+#define DRIVE_SIZE 26
 
 #define DEVICE_COZEN 0x9000
 #define IOCTL_COZEN_WRITEMEM  CTL_CODE(DEVICE_COZEN, 0x901, METHOD_BUFFERED, FILE_READ_ACCESS)
@@ -21,7 +22,7 @@ void registerUSBDrives(WCHAR* driveIdentifier);
 boolean readRegistry(boolean getWhiteList);
 void clearWhiteListVector();
 void GetWhiteListDrives(HKEY hKey);
-void lock_unlock_drives(char* drivesState);
+void lock_unlock_drives(boolean* drivesState);
 
 extern boolean registrationMode;
 

@@ -9,7 +9,7 @@
 GUID WceusbshGUID = { 0x25dbce51, 0x6c8f, 0x4a72,
 					  0x8a,0x6d,0xb5,0x4c,0x2b,0x4f,0xc8,0x35 };
 
-char drivesState[] = "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01";
+boolean drivesState[] = {1, 1, 1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 };
 
 boolean registrationMode = false;
 std::vector<WCHAR*> usbVector;
@@ -308,14 +308,18 @@ boolean readRegistry(boolean getWhiteList)
 	{
 		if (!result)
 		{
-			DWORD buffer;
+			DWORD buffer = 0;
 			DWORD buffersize = 10;
 			if (!RegQueryValueExW(hKey, L"registerNewDrives", NULL, NULL, (BYTE*)&buffer, &buffersize))
 			{
-				if (buffer == 1)
+				if (buffer == 1) {
+
 					registrationMode = true;
+				}
 				else
+				{
 					registrationMode = false;
+				}
 			}
 			if (getWhiteList)
 				GetWhiteListDrives(hKey);
@@ -333,11 +337,9 @@ boolean readRegistry(boolean getWhiteList)
 	 send the drives state to the driver
 
 --------------------------------------------------------------------*/
-void lock_unlock_drives(char* drivesState) {
+void lock_unlock_drives(boolean* drivesState) {
 	HANDLE devh;
 	DWORD bytesreturned;
-	CHAR *q;
-	char sc[] = "\xcc\xc3";
 	devh = CreateFileA("\\\\.\\Cozen",
 		GENERIC_READ,
 		0,
@@ -350,14 +352,12 @@ void lock_unlock_drives(char* drivesState) {
 		return;
 	}
 
-	q = (CHAR*)VirtualAlloc(NULL, sizeof(sc), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-
 	DeviceIoControl(devh,
 		(DWORD)IOCTL_COZEN_WRITEMEM,
 		drivesState,
-		26,
-		q,
-		1,
+		DRIVE_SIZE,
+		NULL,
+		0,
 		&bytesreturned,
 		NULL);
 	CloseHandle(devh);
@@ -419,25 +419,24 @@ void deviceArrival(int wParam, PDEV_BROADCAST_DEVICEINTERFACE lParam)
 						_itow_s(diskNum, chrDiskNum, 10, RADIX);
 						if (!RegQueryValueExW(hKey, chrDiskNum, NULL, NULL, (BYTE*)data, &buffersize))
 						{
-							readRegistry(true); //refresh whitelist
+							registrationMode = readRegistry(true); //refresh whitelist
 							int driveIndex = driveLetter - 'A';
 							if (!checkAuthorization((WCHAR*)data))
 							{
 								if (registrationMode == true)
 								{
 									registerUSBDrives(data);
+									drivesState[driveIndex] = 1;
 								}
-								else
-								{
+								else {
 									drivesState[driveIndex] = 0;
-									lock_unlock_drives(drivesState);
 								}
 							}
 							else
 							{
 								drivesState[driveIndex] = 1;
-								lock_unlock_drives(drivesState);
 							}
+							lock_unlock_drives(drivesState);
 						}
 						free(data);
 					}
