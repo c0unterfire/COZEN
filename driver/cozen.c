@@ -13,7 +13,6 @@
 PFLT_FILTER gFilterHandle;
 
 UNICODE_STRING check = { 0 };
-UNICODE_STRING ntfs = { 0 };
 UNICODE_STRING mft = { 0 };
 DRIVER_DISPATCH COZENIoctl;
 DRIVER_DISPATCH COZENCreateClose;
@@ -683,7 +682,6 @@ DriverEntry (
 	RtlInitUnicodeString(&dosdevname, DOSDEVNAME);
 
 	RtlCreateUnicodeString(&check, L"E:\\");
-	RtlCreateUnicodeString(&ntfs, L"$");
 
 	// all drives are authorized at first
 	for(int i = 0; i < 26; i++)
@@ -1890,24 +1888,18 @@ BOOLEAN isNotWhiteListed(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjec
 	}
 
 	// if the drive letter is blacklisted
-	// need to relook at this code
 	if (isBlacklisted)
 	{
-		status = FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED, &FileNameInformation);
+
+		status = FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_FILESYSTEM_ONLY, &FileNameInformation);
+			
 		if (NT_SUCCESS(status))
 		{
 			status = FltParseFileNameInformation(FileNameInformation);
 
 			if (NT_SUCCESS(status))
 			{
-				if (wcswcs(FileNameInformation->FinalComponent.Buffer, ntfs.Buffer) == FileNameInformation->FinalComponent.Buffer)
-				{
-					ret = FALSE;
-				}
-				else
-				{
-					ret = TRUE;
-				}
+				ret = TRUE;
 				if (FileNameInformation->FinalComponent.Buffer == NULL)
 					ret = FALSE;
 			}
